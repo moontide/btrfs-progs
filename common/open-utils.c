@@ -318,3 +318,83 @@ void close_file_or_dir(int fd, DIR *dirstream)
 }
 
 
+/*
+ * Do the following checks before calling open:
+ * 1: path is in a btrfs filesystem
+ */
+int btrfs_open_fd2(const char *path, bool verbose, bool read_write, bool dir_only)
+{
+	struct statfs stfs;
+	struct stat st;
+	int ret;
+
+	if (stat(path, &st) != 0) {
+		error_on(verbose, "cannot access '%s': %m", path);
+		return -1;
+	}
+
+	if (statfs(path, &stfs) != 0) {
+		error_on(verbose, "cannot access '%s': %m", path);
+		return -1;
+	}
+
+	if (stfs.f_type != BTRFS_SUPER_MAGIC) {
+		error_on(verbose, "not a btrfs filesystem: %s", path);
+		return -2;
+	}
+
+	if (dir_only && !S_ISDIR(st.st_mode)) {
+		error_on(verbose, "not a directory: %s", path);
+		return -3;
+	}
+
+	if (S_ISDIR(st.st_mode) || !read_write)
+		ret = open(path, O_RDONLY);
+	else
+		ret = open(path, O_RDWR);
+	if (ret < 0) {
+		error_on(verbose, "cannot access '%s': %m", path);
+	}
+
+	return ret;
+}
+
+int btrfs_open_file_or_dir_fd(const char *path)
+{
+	return btrfs_open_fd2(path, true, true, false);
+}
+
+int btrfs_open_dir_fd(const char *path)
+{
+	return btrfs_open_fd2(path, true, true, true);
+}
+
+
+/*
+ * Given a pathname, return a filehandle to:
+ * 	the original pathname or,
+ * 	if the pathname is a mounted btrfs device, to its mountpoint.
+ *
+ * On error, return -1, errno should be set.
+ */
+int btrfs_open_mnt_fd(const char *path, bool verbose)
+{
+	char mp[PATH_MAX];
+	int ret;
+
+	if (path_is_block_device(path)) {
+		ret = get_btrfs_mount(path, mp, sizeof(mp));
+		if (ret < 0) {
+			/* not a mounted btrfs dev */
+			error_on(verbose, "'%s' is not a mounted btrfs device",
+				 path);
+			errno = EINVAL;
+			return -1;
+		}
+		ret = btrfs_open_fd2(mp, verbose, true, true);
+	} else {
+		ret = btrfs_open_dir_fd(path);
+	}
+
+	return ret;
+}
