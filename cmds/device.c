@@ -692,7 +692,6 @@ static int cmd_device_stats(const struct cmd_struct *cmd, int argc, char **argv)
 	bool free_table = false;
 	bool tabular = false;
 	__u64 flags = 0;
-	DIR *dirstream = NULL;
 	struct format_ctx fctx;
 
 	optind = 0;
@@ -728,7 +727,7 @@ static int cmd_device_stats(const struct cmd_struct *cmd, int argc, char **argv)
 
 	dev_path = argv[optind];
 
-	fdmnt = open_path_or_dev_mnt(dev_path, &dirstream, 1);
+	fdmnt = btrfs_open_mnt_fd(dev_path, true);
 	if (fdmnt < 0)
 		return 1;
 
@@ -814,7 +813,7 @@ static int cmd_device_stats(const struct cmd_struct *cmd, int argc, char **argv)
 
 out:
 	free(di_args);
-	close_file_or_dir(fdmnt, dirstream);
+	close(fdmnt);
 	if (free_table)
 		table_free(table);
 

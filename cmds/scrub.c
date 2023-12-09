@@ -1203,7 +1203,6 @@ static int scrub_start(const struct cmd_struct *cmd, int argc, char **argv,
 	pthread_mutex_t spc_write_mutex = PTHREAD_MUTEX_INITIALIZER;
 	void *terr;
 	u64 devid;
-	DIR *dirstream = NULL;
 	bool force = false;
 	bool nothing_to_resume = false;
 
@@ -1260,7 +1259,7 @@ static int scrub_start(const struct cmd_struct *cmd, int argc, char **argv,
 
 	path = argv[optind];
 
-	fdmnt = open_path_or_dev_mnt(path, &dirstream, !do_quiet);
+	fdmnt = btrfs_open_mnt_fd(path, !do_quiet);
 	if (fdmnt < 0)
 		return 1;
 
@@ -1618,7 +1617,7 @@ out:
 		if (sock_path[0])
 			unlink(sock_path);
 	}
-	close_file_or_dir(fdmnt, dirstream);
+	close(fdmnt);
 
 	if (err)
 		return 1;
@@ -1671,7 +1670,6 @@ static int cmd_scrub_cancel(const struct cmd_struct *cmd, int argc, char **argv)
 	char *path;
 	int ret;
 	int fdmnt = -1;
-	DIR *dirstream = NULL;
 
 	clean_args_no_options(cmd, argc, argv);
 
@@ -1680,7 +1678,7 @@ static int cmd_scrub_cancel(const struct cmd_struct *cmd, int argc, char **argv)
 
 	path = argv[optind];
 
-	fdmnt = open_path_or_dev_mnt(path, &dirstream, 1);
+	fdmnt = btrfs_open_mnt_fd(path, true);
 	if (fdmnt < 0) {
 		ret = 1;
 		goto out;
@@ -1702,7 +1700,7 @@ static int cmd_scrub_cancel(const struct cmd_struct *cmd, int argc, char **argv)
 	pr_verbose(LOG_DEFAULT, "scrub cancelled\n");
 
 out:
-	close_file_or_dir(fdmnt, dirstream);
+	close(fdmnt);
 	return ret;
 }
 static DEFINE_SIMPLE_COMMAND(scrub_cancel, "cancel");
@@ -1761,7 +1759,6 @@ static int cmd_scrub_status(const struct cmd_struct *cmd, int argc, char **argv)
 	char fsid[BTRFS_UUID_UNPARSED_SIZE];
 	int fdres = -1;
 	int err = 0;
-	DIR *dirstream = NULL;
 
 	unit_mode = get_unit_mode_from_arg(&argc, argv, 0);
 
@@ -1784,7 +1781,7 @@ static int cmd_scrub_status(const struct cmd_struct *cmd, int argc, char **argv)
 
 	path = argv[optind];
 
-	fdmnt = open_path_or_dev_mnt(path, &dirstream, 1);
+	fdmnt = btrfs_open_mnt_fd(path, true);
 	if (fdmnt < 0)
 		return 1;
 
@@ -1888,7 +1885,7 @@ out:
 	free(si_args);
 	if (fdres > -1)
 		close(fdres);
-	close_file_or_dir(fdmnt, dirstream);
+	close(fdmnt);
 
 	return !!err;
 }
