@@ -1740,7 +1740,6 @@ static int _cmd_qgroup_assign(const struct cmd_struct *cmd, int assign,
 	bool rescan = true;
 	char *path;
 	struct btrfs_ioctl_qgroup_assign_args args;
-	DIR *dirstream = NULL;
 
 	optind = 0;
 	while (1) {
@@ -1785,7 +1784,7 @@ static int _cmd_qgroup_assign(const struct cmd_struct *cmd, int assign,
 		error("bad relation requested: %s", path);
 		return 1;
 	}
-	fd = btrfs_open_dir(path, &dirstream, 1);
+	fd = btrfs_open_dir_fd(path);
 	if (fd < 0)
 		return 1;
 
@@ -1794,7 +1793,7 @@ static int _cmd_qgroup_assign(const struct cmd_struct *cmd, int assign,
 		error("unable to assign quota group: %s",
 				errno == ENOTCONN ? "quota not enabled"
 						: strerror(errno));
-		close_file_or_dir(fd, dirstream);
+		close(fd);
 		return 1;
 	}
 
@@ -1820,7 +1819,7 @@ static int _cmd_qgroup_assign(const struct cmd_struct *cmd, int assign,
 			ret = 0;
 		}
 	}
-	close_file_or_dir(fd, dirstream);
+	close(fd);
 	return ret;
 }
 
@@ -1830,7 +1829,6 @@ static int _cmd_qgroup_create(int create, int argc, char **argv)
 	int fd;
 	char *path;
 	struct btrfs_ioctl_qgroup_create_args args;
-	DIR *dirstream = NULL;
 
 	if (check_argc_exact(argc - optind, 2))
 		return 1;
@@ -1844,12 +1842,12 @@ static int _cmd_qgroup_create(int create, int argc, char **argv)
 	}
 	path = argv[optind + 1];
 
-	fd = btrfs_open_dir(path, &dirstream, 1);
+	fd = btrfs_open_dir_fd(path);
 	if (fd < 0)
 		return 1;
 
 	ret = ioctl(fd, BTRFS_IOC_QGROUP_CREATE, &args);
-	close_file_or_dir(fd, dirstream);
+	close(fd);
 	if (ret < 0) {
 		error("unable to %s quota group: %s",
 			create ? "create":"destroy",
@@ -1957,7 +1955,6 @@ static int cmd_qgroup_show(const struct cmd_struct *cmd, int argc, char **argv)
 	char *path;
 	int ret = 0;
 	int fd;
-	DIR *dirstream = NULL;
 	u64 qgroupid;
 	int filter_flag = 0;
 	unsigned unit_mode;
@@ -2030,7 +2027,7 @@ static int cmd_qgroup_show(const struct cmd_struct *cmd, int argc, char **argv)
 		return 1;
 
 	path = argv[optind];
-	fd = btrfs_open_dir(path, &dirstream, 1);
+	fd = btrfs_open_dir_fd(path);
 	if (fd < 0) {
 		free(filter_set);
 		free(comparer_set);
@@ -2048,7 +2045,7 @@ static int cmd_qgroup_show(const struct cmd_struct *cmd, int argc, char **argv)
 		if (ret < 0) {
 			errno = -ret;
 			error("cannot resolve rootid for %s: %m", path);
-			close_file_or_dir(fd, dirstream);
+			close(fd);
 			goto out;
 		}
 		if (filter_flag & 0x1)
@@ -2061,7 +2058,7 @@ static int cmd_qgroup_show(const struct cmd_struct *cmd, int argc, char **argv)
 					qgroupid);
 	}
 	ret = show_qgroups(fd, filter_set, comparer_set);
-	close_file_or_dir(fd, dirstream);
+	close(fd);
 	free(filter_set);
 	free(comparer_set);
 
@@ -2088,7 +2085,6 @@ static int cmd_qgroup_limit(const struct cmd_struct *cmd, int argc, char **argv)
 	unsigned long long size;
 	bool compressed = false;
 	bool exclusive = false;
-	DIR *dirstream = NULL;
 	enum btrfs_util_error err;
 
 	optind = 0;
@@ -2146,12 +2142,12 @@ static int cmd_qgroup_limit(const struct cmd_struct *cmd, int argc, char **argv)
 	} else
 		usage(cmd, 1);
 
-	fd = btrfs_open_dir(path, &dirstream, 1);
+	fd = btrfs_open_dir_fd(path);
 	if (fd < 0)
 		return 1;
 
 	ret = ioctl(fd, BTRFS_IOC_QGROUP_LIMIT, &args);
-	close_file_or_dir(fd, dirstream);
+	close(fd);
 	if (ret < 0) {
 		error("unable to limit requested quota group: %s",
 				errno == ENOTCONN ? "quota not enabled"
@@ -2179,7 +2175,6 @@ static int cmd_qgroup_clear_stale(const struct cmd_struct *cmd, int argc, char *
 	int ret = 0;
 	int fd;
 	char *path = NULL;
-	DIR *dirstream = NULL;
 	struct qgroup_lookup qgroup_lookup;
 	struct rb_node *node;
 	struct btrfs_qgroup *entry;
@@ -2189,7 +2184,7 @@ static int cmd_qgroup_clear_stale(const struct cmd_struct *cmd, int argc, char *
 
 	path = argv[optind];
 
-	fd = btrfs_open_dir(path, &dirstream, 1);
+	fd = btrfs_open_dir_fd(path);
 	if (fd < 0)
 		return 1;
 
@@ -2225,7 +2220,7 @@ static int cmd_qgroup_clear_stale(const struct cmd_struct *cmd, int argc, char *
 	}
 
 out:
-	close_file_or_dir(fd, dirstream);
+	close(fd);
 	return !!ret;
 }
 static DEFINE_SIMPLE_COMMAND(qgroup_clear_stale, "clear-stale");

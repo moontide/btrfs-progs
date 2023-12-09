@@ -1216,11 +1216,10 @@ static int cmd_filesystem_usage(const struct cmd_struct *cmd,
 
 	for (i = optind; i < argc; i++) {
 		int fd;
-		DIR *dirstream = NULL;
 		struct array chunkinfos = { 0 };
 		struct array devinfos = { 0 };
 
-		fd = btrfs_open_dir(argv[i], &dirstream, 1);
+		fd = btrfs_open_dir_fd(argv[i]);
 		if (fd < 0) {
 			ret = 1;
 			goto out;
@@ -1240,7 +1239,7 @@ static int cmd_filesystem_usage(const struct cmd_struct *cmd,
 		ret = print_filesystem_usage_by_chunk(fd, &chunkinfos,
 				&devinfos, argv[i], unit_mode, tabular);
 cleanup:
-		close_file_or_dir(fd, dirstream);
+		close(fd);
 		array_free_elements(&chunkinfos);
 		array_free(&chunkinfos);
 		array_free_elements(&devinfos);

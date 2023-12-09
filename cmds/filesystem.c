@@ -146,7 +146,6 @@ static int cmd_filesystem_df(const struct cmd_struct *cmd,
 	int ret;
 	int fd;
 	char *path;
-	DIR *dirstream = NULL;
 	unsigned unit_mode;
 
 	unit_mode = get_unit_mode_from_arg(&argc, argv, 1);
@@ -158,7 +157,7 @@ static int cmd_filesystem_df(const struct cmd_struct *cmd,
 
 	path = argv[optind];
 
-	fd = btrfs_open_dir(path, &dirstream, 1);
+	fd = btrfs_open_dir_fd(path);
 	if (fd < 0)
 		return 1;
 
@@ -176,7 +175,7 @@ static int cmd_filesystem_df(const struct cmd_struct *cmd,
 	}
 
 	btrfs_warn_multiple_profiles(fd);
-	close_file_or_dir(fd, dirstream);
+	close(fd);
 	return !!ret;
 }
 static DEFINE_COMMAND_WITH_FLAGS(filesystem_df, "df", CMD_FORMAT_JSON);
@@ -1361,7 +1360,6 @@ static int cmd_filesystem_resize(const struct cmd_struct *cmd,
 	struct btrfs_ioctl_vol_args	args;
 	int	fd, res, len, e;
 	char	*amount, *path;
-	DIR	*dirstream = NULL;
 	u64 devid;
 	int ret;
 	bool enqueue = false;
@@ -1399,7 +1397,7 @@ static int cmd_filesystem_resize(const struct cmd_struct *cmd,
 
 	cancel = (strcmp("cancel", amount) == 0);
 
-	fd = btrfs_open_dir(path, &dirstream, 1);
+	fd = btrfs_open_dir_fd(path);
 	if (fd < 0) {
 		/* The path is a directory */
 		if (fd == -3) {
@@ -1422,14 +1420,14 @@ static int cmd_filesystem_resize(const struct cmd_struct *cmd,
 			if (ret < 0)
 				error(
 			"unable to check status of exclusive operation: %m");
-			close_file_or_dir(fd, dirstream);
+			close(fd);
 			return 1;
 		}
 	}
 
 	ret = check_resize_args(amount, path, &devid);
 	if (ret != 0) {
-		close_file_or_dir(fd, dirstream);
+		close(fd);
 		return 1;
 	}
 
@@ -1444,7 +1442,7 @@ static int cmd_filesystem_resize(const struct cmd_struct *cmd,
 	pr_verbose(LOG_VERBOSE, "adjust resize argument to: %s\n", args.name);
 	res = ioctl(fd, BTRFS_IOC_RESIZE, &args);
 	e = errno;
-	close_file_or_dir(fd, dirstream);
+	close(fd);
 	if( res < 0 ){
 		switch (e) {
 		case EFBIG:
