@@ -14,13 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: CI Centos7
-        run: sudo docker run kdave/ci-centos-7-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation
+        run: sudo docker run kdave/ci-centos-7-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --disable-libudev
   check-centos8:
     name: CI Centos 8
     runs-on: ubuntu-latest
     steps:
       - name: CI Centos8
-        run: sudo docker run kdave/ci-centos-8-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --disable-zoned
+        run: sudo docker run kdave/ci-centos-8-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --disable-zoned --disable-libudev
   check-leap153:
     name: CI Leap 15.3
     runs-on: ubuntu-latest
@@ -55,34 +55,30 @@ jobs:
     name: CI Tumbleweed (libgcrypt)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
       - name: CI Tumbleweed (libgcrypt)
-        run: ci/ci-build-tumbleweed HEAD --with-crypto=libgcrypt
+        run: sudo docker run kdave/ci-opensuse-tumbleweed-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --with-crypto=libgcrypt
   check-tumbleweed-libsodium:
     name: CI Tumbleweed (libsodium)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
       - name: CI Tumbleweed (libsodium)
-        run: ci/ci-build-tumbleweed HEAD --with-crypto=libsodium
+        run: sudo docker run kdave/ci-opensuse-tumbleweed-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --with-crypto=libsodium
   check-tumbleweed-libkcapi:
     name: CI Tumbleweed (libkcapi)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
       - name: CI Tumbleweed (libkcapi)
-        run: ci/ci-build-tumbleweed HEAD --with-crypto=libkcapi
+        run: sudo docker run kdave/ci-opensuse-tumbleweed-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --with-crypto=libkcapi
   check-tumbleweed-botan:
     name: CI Tumbleweed (Botan)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
       - name: CI Tumbleweed (Botan)
-        run: ci/ci-build-tumbleweed HEAD --with-crypto=botan
+        run: sudo docker run kdave/ci-opensuse-tumbleweed-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --with-crypto=botan
 #   check-tumbleweed-openssl:
 #     name: CI Tumbleweed (OpenSSL)
 #     runs-on: ubuntu-latest
 #     steps:
 #       - uses: actions/checkout@v3
 #       - name: CI Tumbleweed (OpenSSL)
-#         run: ci/ci-build-tumbleweed HEAD --with-crypto=openssl
+#         run: sudo docker run kdave/ci-opensuse-tumbleweed-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --with-crypto=openssl
