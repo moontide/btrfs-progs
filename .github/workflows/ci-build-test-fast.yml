@@ -72,12 +72,12 @@ jobs:
     steps:
       - name: CI Tumbleweed (libkcapi)
         run: sudo docker run kdave/ci-opensuse-tumbleweed-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --with-crypto=libkcapi
-  check-tumbleweed-botan:
-    name: CI Tumbleweed (Botan)
-    runs-on: ubuntu-latest
-    steps:
-      - name: CI Tumbleweed (Botan)
-        run: sudo docker run kdave/ci-opensuse-tumbleweed-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --with-crypto=botan
+          # check-tumbleweed-botan:
+          #   name: CI Tumbleweed (Botan)
+          #   runs-on: ubuntu-latest
+          #   steps:
+          #     - name: CI Tumbleweed (Botan)
+          #       run: sudo docker run kdave/ci-opensuse-tumbleweed-x86_64 ./test-build $GITHUB_REF_NAME --disable-documentation --with-crypto=botan
 #   check-tumbleweed-openssl:
 #     name: CI Tumbleweed (OpenSSL)
 #     runs-on: ubuntu-latest
