@@ -1723,6 +1723,15 @@ int BOX_MAIN(mkfs)(int argc, char **argv)
 		}
 	}
 
+	/* Lock all devices to prevent race with udev probing. */
+	for (i = 0; i < device_count; i++) {
+		char *path = argv[optind + i - 1];
+
+		ret = btrfs_flock_one_device(path);
+		if (ret < 0)
+			warning("failed to flock %s, skipping it", path);
+	}
+
 	/* Start threads */
 	for (i = 0; i < device_count; i++) {
 		prepare_ctx[i].file = argv[optind + i - 1];
@@ -2079,6 +2088,7 @@ out:
 	free(label);
 	free(source_dir);
 
+	btrfs_unlock_all_devices();
 	return !!ret;
 
 error:
@@ -2090,6 +2100,7 @@ error:
 	free(prepare_ctx);
 	free(label);
 	free(source_dir);
+	btrfs_unlock_all_devices();
 	exit(1);
 success:
 	exit(0);

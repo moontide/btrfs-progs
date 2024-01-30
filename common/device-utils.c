@@ -17,11 +17,13 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/file.h>
 #include <linux/limits.h>
 #ifdef BTRFS_ZONED
 #include <linux/blkzoned.h>
 #endif
 #include <linux/fs.h>
+#include <linux/kdev_t.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +49,24 @@
 #ifndef BLKDISCARD
 #define BLKDISCARD	_IO(0x12,119)
 #endif
+
+static LIST_HEAD(locked_devices);
+
+/*
+ * This is to record flock()ed devices.
+ * For flock() to prevent udev races, we must lock the parent block device,
+ * but we may hit cases like "mkfs.btrfs -f /dev/sda[123]", in that case
+ * we should only lock "/dev/sda" once.
+ *
+ * This structure would be used to record any flocked block device (not the
+ * partition one), and avoid double locking.
+ */
+struct btrfs_locked_wholedisk {
+	char *full_path;
+	dev_t devno;
+	int fd;
+	struct list_head list;
+};
 
 /*
  * Discard the given range in one go
@@ -632,4 +652,107 @@ ssize_t btrfs_direct_pwrite(int fd, const void *buf, size_t count, off_t offset)
 
 	free(bounce_buf);
 	return ret;
+}
+
+int btrfs_flock_one_device(const char *path)
+{
+	struct btrfs_locked_wholedisk *entry;
+	struct stat st = { 0 };
+	char *path_dump;
+	char *wholedisk_path;
+	dev_t wholedisk_devno;
+	int ret;
+
+	ret = stat(path, &st);
+	if (ret < 0) {
+		error("failed to stat %s: %m", path);
+		return -errno;
+	}
+	/* Non-block device, skipping the locking. */
+	if (!S_ISBLK(st.st_mode))
+		return 0;
+
+	/*
+	 * Dump the path as blkid_devno_to_wholedisk() would modify the path to
+	 * the basename of the wholedisk.
+	 */
+	path_dump = strdup(path);
+	if (!path_dump) {
+		error("failed to copy the string \"%s\": %m", path);
+		return -ENOMEM;
+	}
+	ret = blkid_devno_to_wholedisk(st.st_rdev, path_dump, strlen(path_dump),
+				       &wholedisk_devno);
+	if (ret < 0) {
+		free(path_dump);
+		error("failed to get the whole disk devno for %s: %m", path);
+		return -errno;
+	}
+	free(path_dump);
+	wholedisk_path = blkid_devno_to_devname(wholedisk_devno);
+	if (!wholedisk_path) {
+		error("failed to get the devname of dev %ld:%ld",
+			MAJOR(wholedisk_devno), MINOR(wholedisk_devno));
+	}
+
+	/* Check if we already have the whole disk in the list. */
+	list_for_each_entry(entry, &locked_devices, list) {
+		/* The wholedisk is already locked, do nothing. */
+		if (entry->devno == wholedisk_devno || entry->full_path == wholedisk_path) {
+			free(wholedisk_path);
+			return 0;
+		}
+	}
+
+	/* Allocate new entry. */
+	entry = malloc(sizeof(*entry));
+	if (!entry) {
+		errno = ENOMEM;
+		error("unable to allocate new memory for %s: %m", wholedisk_path);
+		free(wholedisk_path);
+		return -errno;
+	}
+	entry->devno = wholedisk_devno;
+	entry->full_path = wholedisk_path;
+
+	/* Lock the whole disk. */
+	entry->fd = open(wholedisk_path, O_RDONLY);
+	if (entry->fd < 0) {
+		error("failed to open device %s: %m", wholedisk_path);
+		free(wholedisk_path);
+		free(entry);
+		return -errno;
+	}
+	ret = flock(entry->fd, LOCK_EX);
+	if (ret < 0) {
+		error("failed to hold an exclusive lock on %s: %m", wholedisk_path);
+		free(wholedisk_path);
+		free(entry);
+		return -errno;
+	}
+
+	/* Insert it into the list. */
+	list_add_tail(&entry->list, &locked_devices);
+	return 0;
+}
+
+void btrfs_unlock_all_devices(void)
+{
+	while (!list_empty(&locked_devices)) {
+		struct btrfs_locked_wholedisk *entry;
+		int ret;
+
+		entry = list_entry(locked_devices.next,
+				   struct btrfs_locked_wholedisk, list);
+
+		list_del_init(&entry->list);
+		ret = flock(entry->fd, LOCK_UN);
+		if (ret < 0) {
+			warning("failed to unlock %s (fd %d dev %ld:%ld), skipping it",
+				entry->full_path, entry->fd, MAJOR(entry->devno),
+				MINOR(entry->devno));
+		}
+		free(entry->full_path);
+		free(entry);
+	}
 }
