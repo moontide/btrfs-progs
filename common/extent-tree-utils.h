@@ -18,7 +18,6 @@
 #define _EXTENT_TREE_UTILS_H_
 
 #include "kerncompat.h"
-#include "kernel-lib/bitops.h"
 
 struct btrfs_inode_item;
 struct btrfs_path;

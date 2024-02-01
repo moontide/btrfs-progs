@@ -14,6 +14,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include "kerncompat.h"
 #include <sys/timerfd.h>
 #include <pthread.h>
 #include <stdlib.h>

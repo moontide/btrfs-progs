@@ -21,7 +21,12 @@
 #ifndef __BTRFS_CHECK_MODE_ORIGINAL_H__
 #define __BTRFS_CHECK_MODE_ORIGINAL_H__
 
+#include "kerncompat.h"
+#include "kernel-lib/list.h"
+#include "kernel-lib/rbtree.h"
+#include "kernel-shared/uapi/btrfs_tree.h"
 #include "common/rbtree-utils.h"
+#include "common/extent-cache.h"
 
 struct extent_backref {
 	struct rb_node node;

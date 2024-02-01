@@ -17,7 +17,7 @@
 #ifndef __BTRFS_SUBVOLUME_H__
 #define __BTRFS_SUBVOLUME_H__
 
-struct rowspec;
+#include "common/format-output.h"
 
 extern const struct rowspec btrfs_subvolume_rowspec[];
 

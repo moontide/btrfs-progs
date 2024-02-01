@@ -17,6 +17,7 @@
 #ifndef __BTRFS_TUNE_H__
 #define __BTRFS_TUNE_H__
 
+#include "kerncompat.h"
 #include <uuid/uuid.h>
 
 struct btrfs_root;
